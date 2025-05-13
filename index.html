@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Earthquake Visualization</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <style>
+    #map {
+      height: 90vh;
+      width: 100%;
+    }
+    .legend {
+      background: white;
+      padding: 10px;
+      line-height: 18px;
+      color: #555;
+    }
+    .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+<h2 style="text-align:center">Earthquake Activity - Past 7 Days</h2>
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+
+<!-- D3 for loading GeoJSON -->
+<script src="https://d3js.org/d3.v5.min.js"></script>
+
+<script>
+  // Base map
+  const map = L.map('map').setView([37.09, -95.71], 4);
+
+  // Add tile layer
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // Get GeoJSON from USGS
+  const url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
+
+  // Color scale based on depth
+  function getColor(depth) {
+    return depth > 90 ? "#d73027" :
+           depth > 70 ? "#fc8d59" :
+           depth > 50 ? "#fee08b" :
+           depth > 30 ? "#d9ef8b" :
+           depth > 10 ? "#91cf60" :
+                        "#1a9850";
+  }
+
+  // Radius scale based on magnitude
+  function getRadius(mag) {
+    return mag ? mag * 4 : 1;
+  }
+
+  // Load GeoJSON
+  d3.json(url).then(data => {
+    L.geoJSON(data, {
+      pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng, {
+          radius: getRadius(feature.properties.mag),
+          fillColor: getColor(feature.geometry.coordinates[2]), // depth
+          color: "#000",
+          weight: 0.5,
+          opacity: 1,
+          fillOpacity: 0.8
+        });
+      },
+      onEachFeature: function (feature, layer) {
+        layer.bindPopup(
+          `<strong>Location:</strong> ${feature.properties.place}<br/>
+           <strong>Magnitude:</strong> ${feature.properties.mag}<br/>
+           <strong>Depth:</strong> ${feature.geometry.coordinates[2]} km<br/>
+           <strong>Time:</strong> ${new Date(feature.properties.time)}`
+        );
+      }
+    }).addTo(map);
+
+    // Add legend
+    const legend = L.control({ position: "bottomright" });
+    legend.onAdd = function () {
+      const div = L.DomUtil.create("div", "legend");
+      const grades = [-10, 10, 30, 50, 70, 90];
+      const colors = ["#1a9850", "#91cf60", "#d9ef8b", "#fee08b", "#fc8d59", "#d73027"];
+      div.innerHTML += "<strong>Depth (km)</strong><br>";
+      for (let i = 0; i < grades.length; i++) {
+        div.innerHTML +=
+          `<i style="background:${colors[i]}"></i> ${grades[i]}&ndash;${grades[i + 1] || "+"}<br>`;
+      }
+      return div;
+    };
+    legend.addTo(map);
+  });
+</script>
+
+</body>
+</html>
